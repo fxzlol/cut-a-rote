@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cut-A-Rote</title>
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { margin: 0; padding: 20px; background: #f4f4f9; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        .hidden { display: none !important; }
+        .tab { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .tab button { padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+        .tab button.active { background: #0056b3; }
+        .tab button:hover { background: #0056b3; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn { padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .error { color: red; }
+        .success { color: green; }
+        #messages { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fafafa; margin-bottom: 10px; }
+        .msg { margin-bottom: 8px; padding: 5px 10px; border-radius: 10px; background: #e9ecef; }
+        .msg.me { background: #007bff; color: #fff; text-align: right; }
+        .msg .time { font-size: 0.7em; color: #888; }
+        .search-result { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .search-result:hover { background: #f0f0f0; }
+        .profile-info p { margin: 5px 0; }
+        #chatHeader { display: flex; justify-content: space-between; align-items: center; }
+        #logoutBtn { margin-left: auto; }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <h1>✂️ Cut-A-Rote</h1>
+
+    <!-- Блок авторизации -->
+    <div id="auth">
+        <div id="loginForm">
+            <h2>Вход</h2>
+            <div class="form-group">
+                <label>Имя пользователя (username)</label>
+                <input type="text" id="loginUsername" placeholder="username" />
+            </div>
+            <div class="form-group">
+                <label>Пароль</label>
+                <input type="password" id="loginPassword" placeholder="пароль" />
+            </div>
+            <button class="btn" id="loginBtn">Войти</button>
+            <p>Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a></p>
+            <div id="loginError" class="error"></div>
+        </div>
+        <div id="registerForm" class="hidden">
+            <h2>Регистрация</h2>
+            <div class="form-group">
+                <label>Имя пользователя (username, уникальное)</label>
+                <input type="text" id="regUsername" placeholder="username" />
+            </div>
+            <div class="form-group">
+                <label>Отображаемое имя (nickname)</label>
+                <input type="text" id="regNickname" placeholder="nickname" />
+            </div>
+            <div class="form-group">
+                <label>Пароль</label>
+                <input type="password" id="regPassword" placeholder="пароль" />
+            </div>
+            <button class="btn" id="registerBtn">Зарегистрироваться</button>
+            <p>Уже есть аккаунт? <a href="#" id="showLogin">Войти</a></p>
+            <div id="registerError" class="error"></div>
+            <div id="registerSuccess" class="success"></div>
+        </div>
+    </div>
+
+    <!-- Основное приложение -->
+    <div id="mainApp" class="hidden">
+        <div class="tab">
+            <button class="active" data-tab="profile">Профиль</button>
+            <button data-tab="search">Поиск</button>
+            <button data-tab="chat">Чат</button>
+            <button id="logoutBtn">Выйти</button>
+        </div>
+
+        <!-- Профиль -->
+        <div id="tabProfile" class="tab-content">
+            <div class="profile-info">
+                <p><strong>ID:</strong> <span id="profileId"></span></p>
+                <p><strong>Username:</strong> <span id="profileUsername"></span></p>
+                <p><strong>Nickname:</strong> <span id="profileNickname"></span></p>
+            </div>
+            <h3>Сменить пароль</h3>
+            <div class="form-group">
+                <label>Старый пароль</label>
+                <input type="password" id="oldPassword" />
+            </div>
+            <div class="form-group">
+                <label>Новый пароль</label>
+                <input type="password" id="newPassword" />
+            </div>
+            <button class="btn" id="changePasswordBtn">Сменить пароль</button>
+            <div id="passwordChangeResult"></div>
+
+            <h3>Сменить username и nickname</h3>
+            <div class="form-group">
+                <label>Новый username</label>
+                <input type="text" id="newUsername" />
+            </div>
+            <div class="form-group">
+                <label>Новый nickname</label>
+                <input type="text" id="newNickname" />
+            </div>
+            <button class="btn" id="updateProfileBtn">Обновить профиль</button>
+            <div id="profileUpdateResult"></div>
+        </div>
+
+        <!-- Поиск -->
+        <div id="tabSearch" class="tab-content hidden">
+            <div class="form-group">
+                <label>Поиск пользователей</label>
+                <input type="text" id="searchInput" placeholder="введите username или nickname" />
+            </div>
+            <button class="btn" id="searchBtn">Найти</button>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Чат -->
+        <div id="tabChat" class="tab-content hidden">
+            <div id="chatHeader">
+                <h3>Чат с <span id="chatPartnerName">...</span></h3>
+                <button class="btn" id="refreshChatBtn">Обновить</button>
+            </div>
+            <div id="messages"></div>
+            <div class="form-group">
+                <input type="text" id="messageInput" placeholder="Введите сообщение..." />
+            </div>
+            <button class="btn" id="sendMessageBtn">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---- Глобальные переменные ----
+    let currentUserId = null;
+    let currentUsername = null;
+    let currentNickname = null;
+    let chatPartnerId = null;
+    let chatInterval = null;
+
+    // ---- DOM ----
+    const $ = id => document.getElementById(id);
+    const loginForm = $('loginForm');
+    const registerForm = $('registerForm');
+    const loginBtn = $('loginBtn');
+    const registerBtn = $('registerBtn');
+    const showRegister = $('showRegister');
+    const showLogin = $('showLogin');
+    const loginError = $('loginError');
+    const registerError = $('registerError');
+    const registerSuccess = $('registerSuccess');
+
+    const profileId = $('profileId');
+    const profileUsername = $('profileUsername');
+    const profileNickname = $('profileNickname');
+    const oldPassword = $('oldPassword');
+    const newPassword = $('newPassword');
+    const changePasswordBtn = $('changePasswordBtn');
+    const passwordChangeResult = $('passwordChangeResult');
+    const newUsername = $('newUsername');
+    const newNickname = $('newNickname');
+    const updateProfileBtn = $('updateProfileBtn');
+    const profileUpdateResult = $('profileUpdateResult');
+
+    const searchInput = $('searchInput');
+    const searchBtn = $('searchBtn');
+    const searchResults = $('searchResults');
+
+    const chatPartnerName = $('chatPartnerName');
+    const messagesDiv = $('messages');
+    const messageInput = $('messageInput');
+    const sendMessageBtn = $('sendMessageBtn');
+    const refreshChatBtn = $('refreshChatBtn');
+    const logoutBtn = $('logoutBtn');
+
+    const tabButtons = document.querySelectorAll('.tab button[data-tab]');
+    const tabContents = {
+        profile: $('tabProfile'),
+        search: $('tabSearch'),
+        chat: $('tabChat')
+    };
+
+    // ---- Вспомогательные функции ----
+    function showTab(tabId) {
+        Object.keys(tabContents).forEach(key => {
+            tabContents[key].classList.toggle('hidden', key !== tabId);
+        });
+        tabButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+        if (tabId === 'chat' && chatPartnerId) loadMessages();
+    }
+
+    function showAuth() {
+        $('auth').classList.remove('hidden');
+        $('mainApp').classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        if (chatInterval) clearInterval(chatInterval);
+    }
+
+    function showApp() {
+        $('auth').classList.add('hidden');
+        $('mainApp').classList.remove('hidden');
+        profileId.textContent = currentUserId;
+        profileUsername.textContent = currentUsername;
+        profileNickname.textContent = currentNickname;
+        newUsername.value = currentUsername;
+        newNickname.value = currentNickname;
+        showTab('profile');
+    }
+
+    async function loadProfile() {
+        try {
+            const res = await fetch(`/profile/${currentUserId}`);
+            if (res.ok) {
+                const data = await res.json();
+                currentUsername = data.username;
+                currentNickname = data.nickname;
+                profileUsername.textContent = currentUsername;
+                profileNickname.textContent = currentNickname;
+                newUsername.value = currentUsername;
+                newNickname.value = currentNickname;
+                localStorage.setItem('username', currentUsername);
+                localStorage.setItem('nickname', currentNickname);
+            }
+        } catch (e) { console.error('loadProfile error', e); }
+    }
+
+    function checkAuth() {
+        const userId = localStorage.getItem('userId');
+        const username = localStorage.getItem('username');
+        const nickname = localStorage.getItem('nickname');
+        if (userId && username) {
+            currentUserId = userId;
+            currentUsername = username;
+            currentNickname = nickname || username;
+            showApp();
+            loadProfile();
+        } else {
+            showAuth();
+        }
+    }
+
+    // ---- Регистрация ----
+    registerBtn.addEventListener('click', async () => {
+        const username = $('regUsername').value.trim();
+        const nickname = $('regNickname').value.trim();
+        const password = $('regPassword').value;
+        if (!username || !nickname || !password) {
+            registerError.textContent = 'Все поля обязательны';
+            return;
+        }
+        try {
+            const res = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, nickname, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                registerSuccess.textContent = 'Регистрация успешна! Теперь войдите.';
+                registerError.textContent = '';
+                $('regUsername').value = '';
+                $('regNickname').value = '';
+                $('regPassword').value = '';
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                registerError.textContent = data.error || 'Ошибка регистрации';
+                registerSuccess.textContent = '';
+            }
+        } catch (e) {
+            registerError.textContent = 'Ошибка соединения';
+        }
+    });
+
+    // ---- Логин ----
+    loginBtn.addEventListener('click', async () => {
+        const username = $('loginUsername').value.trim();
+        const password = $('loginPassword').value;
+        if (!username || !password) {
+            loginError.textContent = 'Введите username и пароль';
+            return;
+        }
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                loginError.textContent = '';
+                currentUserId = data.userId;
+                currentUsername = data.username;
+                currentNickname = data.nickname;
+                localStorage.setItem('userId', currentUserId);
+                localStorage.setItem('username', currentUsername);
+                localStorage.setItem('nickname', currentNickname);
+                showApp();
+                loadProfile();
+            } else {
+                loginError.textContent = data.error || 'Ошибка входа';
+            }
+        } catch (e) {
+            loginError.textContent = 'Ошибка соединения';
+        }
+    });
+
+    // ---- Переключение форм ----
+    showRegister.addEventListener('click', e => {
+        e.preventDefault();
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        loginError.textContent = '';
+        registerError.textContent = '';
+        registerSuccess.textContent = '';
+    });
+    showLogin.addEventListener('click', e => {
+        e.preventDefault();
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        loginError.textContent = '';
+        registerError.textContent = '';
+        registerSuccess.textContent = '';
+    });
+
+    // ---- Выход ----
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        localStorage.removeItem('nickname');
+        currentUserId = null;
+        currentUsername = null;
+        currentNickname = null;
+        chatPartnerId = null;
+        if (chatInterval) clearInterval(chatInterval);
+        showAuth();
+    });
+
+    // ---- Смена пароля ----
+    changePasswordBtn.addEventListener('click', async () => {
+        const oldPwd = oldPassword.value;
+        const newPwd = newPassword.value;
+        if (!oldPwd || !newPwd) {
+            passwordChangeResult.textContent = 'Введите оба пароля';
+            passwordChangeResult.style.color = 'red';
+            return;
+        }
+        try {
+            const res = await fetch('/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, oldPassword: oldPwd, newPassword: newPwd })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                passwordChangeResult.textContent = 'Пароль изменён!';
+                passwordChangeResult.style.color = 'green';
+                oldPassword.value = '';
+                newPassword.value = '';
+            } else {
+                passwordChangeResult.textContent = data.error || 'Ошибка';
+                passwordChangeResult.style.color = 'red';
+            }
+        } catch (e) {
+            passwordChangeResult.textContent = 'Ошибка соединения';
+            passwordChangeResult.style.color = 'red';
+        }
+    });
+
+    // ---- Обновление профиля ----
+    updateProfileBtn.addEventListener('click', async () => {
+        const newU = newUsername.value.trim();
+        const newN = newNickname.value.trim();
+        if (!newU || !newN) {
+            profileUpdateResult.textContent = 'Заполните поля';
+            profileUpdateResult.style.color = 'red';
+            return;
+        }
+        try {
+            const res = await fetch('/update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, username: newU, nickname: newN })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                profileUpdateResult.textContent = 'Профиль обновлён!';
+                profileUpdateResult.style.color = 'green';
+                currentUsername = newU;
+                currentNickname = newN;
+                localStorage.setItem('username', newU);
+                localStorage.setItem('nickname', newN);
+                loadProfile();
+            } else {
+                profileUpdateResult.textContent = data.error || 'Ошибка';
+                profileUpdateResult.style.color = 'red';
+            }
+        } catch (e) {
+            profileUpdateResult.textContent = 'Ошибка соединения';
+            profileUpdateResult.style.color = 'red';
+        }
+    });
+
+    // ---- Поиск ----
+    searchBtn.addEventListener('click', async () => {
+        const query = searchInput.value.trim();
+        if (!query) {
+            searchResults.innerHTML = '<p>Введите запрос</p>';
+            return;
+        }
+        try {
+            const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const users = await res.json();
+                if (users.length === 0) {
+                    searchResults.innerHTML = '<p>Ничего не найдено</p>';
+                } else {
+                    let html = '';
+                    users.forEach(u => {
+                        if (u.id === currentUserId) return;
+                        html += `<div class="search-result" data-id="${u.id}" data-username="${u.username}" data-nickname="${u.nickname}">
+                            ${u.nickname} (@${u.username})
+                        </div>`;
+                    });
+                    searchResults.innerHTML = html;
+                    document.querySelectorAll('.search-result').forEach(el => {
+                        el.addEventListener('click', function() {
+                            openChat(this.dataset.id, this.dataset.nickname || this.dataset.username);
+                        });
+                    });
+                }
+            }
+        } catch (e) {
+            searchResults.innerHTML = '<p>Ошибка загрузки</p>';
+        }
+    });
+
+    // ---- Открыть чат ----
+    function openChat(partnerId, partnerName) {
+        chatPartnerId = partnerId;
+        chatPartnerName.textContent = partnerName;
+        showTab('chat');
+        loadMessages();
+        if (chatInterval) clearInterval(chatInterval);
+        chatInterval = setInterval(loadMessages, 5000);
+    }
+
+    // ---- Загрузка сообщений ----
+    async function loadMessages() {
+        if (!currentUserId || !chatPartnerId) return;
+        try {
+            const res = await fetch(`/messages?userId=${currentUserId}&otherUserId=${chatPartnerId}`);
+            if (res.ok) {
+                const msgs = await res.json();
+                if (msgs.length === 0) {
+                    messagesDiv.innerHTML = '<p>Нет сообщений</p>';
+                    return;
+                }
+                let html = '';
+                msgs.forEach(m => {
+                    const isMe = m.fromUserId === currentUserId;
+                    const time = new Date(m.timestamp).toLocaleString();
+                    html += `<div class="msg ${isMe ? 'me' : ''}">
+                        <div>${m.text}</div>
+                        <div class="time">${time}</div>
+                    </div>`;
+                });
+                messagesDiv.innerHTML = html;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        } catch (e) { console.error('loadMessages error', e); }
+    }
+
+    // ---- Отправка сообщения ----
+    sendMessageBtn.addEventListener('click', async () => {
+        const text = messageInput.value.trim();
+        if (!text || !chatPartnerId) return;
+        try {
+            const res = await fetch('/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fromUserId: currentUserId, toUserId: chatPartnerId, text })
+            });
+            if (res.ok) {
+                messageInput.value = '';
+                loadMessages();
+            } else {
+                alert('Не удалось отправить сообщение');
+            }
+        } catch (e) {
+            alert('Ошибка соединения');
+        }
+    });
+
+    // ---- Обновить чат вручную ----
+    refreshChatBtn.addEventListener('click', loadMessages);
+
+    // ---- Переключение вкладок ----
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+            if (tabId) showTab(tabId);
+        });
+    });
+
+    // ---- Enter в полях ----
+    messageInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessageBtn.click(); });
+    searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') searchBtn.click(); });
+
+    // ---- Старт ----
+    checkAuth();
+</script>
+</body>
+</html>
