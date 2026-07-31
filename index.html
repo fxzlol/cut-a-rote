@@ -50,11 +50,9 @@
 <div class="container" id="app">
     <h1>✂️ Cut-A-Rote</h1>
 
-    <!-- Аудио для уведомлений -->
-    <audio id="notif-sound" src="https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/you%20have%20a%20message!.MP3"></audio>
-    <audio id="send-sound" src="https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/message%20sended.MP3"></audio>
+    <!-- ТОЛЬКО ЭТИ ДВА ЭЛЕМЕНТА (без src) -->
     <audio id="notif-sound" preload="auto"></audio>
-<audio id="send-sound" preload="auto"></audio>
+    <audio id="send-sound" preload="auto"></audio>
 
     <!-- Блок авторизации -->
     <div id="auth">
@@ -233,16 +231,11 @@
     const dialogListEl = $('dialogList');
     const contextMenu = $('contextMenu');
 
-    // ---- Звуки ----
-    function playSound(type) {
-        try {
-            if (type === 'incoming') {
-                $('notif-sound').play().catch(() => {});
-            } else if (type === 'outgoing') {
-                $('send-sound').play().catch(() => {});
-            }
-        } catch(e) {}
-    }
+    // ---- ЗВУКИ (новая, единственная функция) ----
+    // Она будет переопределена ниже в IIFE, поэтому пока заглушка
+    let playSound = function(type) {
+        console.warn('playSound not initialized yet');
+    };
 
     // ---- Вспомогательные функции ----
     function showTab(tabId) {
@@ -719,7 +712,6 @@
             if (res.ok) {
                 messageInput.value = '';
                 loadMessages();
-                playSound('incoming');
                 // Добавляем собеседника в диалоги (если его нет)
                 if (!dialogsList.find(d => d.id === chatPartnerId)) {
                     loadDialogs();
@@ -760,70 +752,81 @@
     setInterval(() => {
         if (currentUserId) loadDialogs();
     }, 5000);
-    // ===== АУДИО И УВЕДОМЛЕНИЯ =====
-(function initAudio() {
-    let audioCtx = null;
-    let isAudioReady = false;
 
-    // Внешние файлы (если доступны)
-    const incomingSound = new Audio('https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/you%20have%20a%20message!.MP3');
-    const outgoingSound = new Audio('https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/message%20sended.MP3');
-    incomingSound.crossOrigin = 'anonymous';
-    outgoingSound.crossOrigin = 'anonymous';
+    // ===== АУДИО (ЕДИНСТВЕННАЯ, РАБОЧАЯ ВЕРСИЯ) =====
+    (function initAudio() {
+        let audioCtx = null;
+        let isAudioReady = false;
 
-    function fallbackBeep(type) {
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = type === 'incoming' ? 800 : 600;
-            gain.gain.value = 0.2;
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.15);
-        } catch(e) {}
-    }
+        // Внешние файлы
+        const incomingSound = new Audio('https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/you%20have%20a%20message!.MP3');
+        const outgoingSound = new Audio('https://fxzlolserverdatalog.ct.ws/audio/cut-a-rote/message%20sended.MP3');
+        incomingSound.crossOrigin = 'anonymous';
+        outgoingSound.crossOrigin = 'anonymous';
+        incomingSound.preload = 'auto';
+        outgoingSound.preload = 'auto';
 
-    function playSound(type) {
-        if (!isAudioReady) {
-            // Пытаемся активировать при первом вызове
+        function fallbackBeep(type) {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
-                isAudioReady = true;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = type === 'incoming' ? 880 : 660;
+                gain.gain.value = 0.15;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
             } catch(e) {}
         }
-        const sound = type === 'incoming' ? incomingSound : outgoingSound;
-        if (sound.readyState >= 2) {
-            sound.currentTime = 0;
-            sound.play().catch(() => fallbackBeep(type));
-        } else {
-            sound.load();
-            sound.play().catch(() => fallbackBeep(type));
-        }
-    }
 
-    // Разблокировка при первом клике
-    document.addEventListener('click', function unlock() {
-        if (!isAudioReady) {
+        // Переопределяем глобальную playSound
+        window.playSound = function(type) {
+            if (!isAudioReady) {
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    isAudioReady = true;
+                    incomingSound.load();
+                    outgoingSound.load();
+                } catch(e) {}
+            }
+            const sound = type === 'incoming' ? incomingSound : outgoingSound;
             try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                isAudioReady = true;
-            } catch(e) {}
+                if (sound.readyState >= 2) {
+                    sound.currentTime = 0;
+                    sound.play().catch(() => fallbackBeep(type));
+                } else {
+                    sound.load();
+                    sound.play().catch(() => fallbackBeep(type));
+                }
+            } catch(e) {
+                fallbackBeep(type);
+            }
+        };
+
+        // Разблокировка при первом клике
+        document.addEventListener('click', function unlock() {
+            if (!isAudioReady) {
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    isAudioReady = true;
+                    incomingSound.load();
+                    outgoingSound.load();
+                } catch(e) {}
+            }
+            document.removeEventListener('click', unlock);
+        }, { once: true });
+
+        // Переопределяем локальную переменную playSound, если она ещё не назначена
+        if (typeof playSound === 'undefined' || playSound === null) {
+            playSound = window.playSound;
         }
-        document.removeEventListener('click', unlock);
-    }, { once: true });
+    })();
 
-    window.playSound = playSound;
-})();
-
-// ВЫЗОВЫ:
-// - При отправке сообщения: playSound('outgoing');
-// - При получении нового сообщения: playSound('incoming');
 </script>
 </body>
 </html>
