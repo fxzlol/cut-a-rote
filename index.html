@@ -364,6 +364,9 @@
             font-weight: 600;
             font-size: 1.2rem;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         #chatHeader .actions {
             display: flex;
@@ -544,13 +547,27 @@
             from { opacity: 0; transform: translateX(-50%) translateY(20px); }
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
+
+        /* SVG иконки верификации */
+        .verify-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        .verify-icon svg {
+            display: block;
+            width: 18px;
+            height: 18px;
+        }
     </style>
 </head>
 <body>
 <div class="container" id="app">
     <h1><i class="fas fa-cut"></i> Cut-A-Rote</h1>
 
-    <!-- Звуки (оставляем без изменений) -->
+    <!-- Звуки -->
     <audio id="notif-sound" preload="auto"></audio>
     <audio id="send-sound" preload="auto"></audio>
 
@@ -608,7 +625,7 @@
                 <p><strong><i class="fas fa-hashtag"></i> ID:</strong> <span id="profileId"></span></p>
                 <p><strong><i class="fas fa-user"></i> Username:</strong> <span id="profileUsername"></span></p>
                 <p><strong><i class="fas fa-id-badge"></i> Nickname:</strong> <span id="profileNickname"></span></p>
-                <p><strong><i class="fas fa-check-circle"></i> Verified:</strong> <span id="profileVerified">❌</span></p>
+                <p><strong><i class="fas fa-check-circle"></i> Verified:</strong> <span id="profileVerified"></span></p>
             </div>
 
             <div class="section-title"><i class="fas fa-key"></i> Сменить пароль</div>
@@ -739,6 +756,15 @@
         console.warn('playSound not initialized yet');
     };
 
+    // ---- SVG-иконка верификации ----
+    function getVerifiedSVG(verified, size = 18) {
+        if (verified) {
+            return `<span class="verify-icon"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="#6dd5fa" stroke="#6dd5fa" stroke-width="2"/><path d="M7 12L10.5 15.5L17 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+        } else {
+            return `<span class="verify-icon"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="#555" stroke="#555" stroke-width="2"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></span>`;
+        }
+    }
+
     // ---- Вспомогательные функции ----
     function showTab(tabId) {
         Object.keys(tabContents).forEach(key => {
@@ -765,7 +791,8 @@
         profileId.textContent = currentUserId;
         profileUsername.textContent = currentUsername;
         profileNickname.textContent = currentNickname;
-        profileVerified.textContent = currentVerified ? '✅ Да' : '❌ Нет';
+        // Обновляем статус верификации с SVG
+        profileVerified.innerHTML = getVerifiedSVG(currentVerified) + (currentVerified ? ' Да' : ' Нет');
         newUsername.value = currentUsername;
         newNickname.value = currentNickname;
         showTab('profile');
@@ -782,7 +809,7 @@
                 currentVerified = data.verified || false;
                 profileUsername.textContent = currentUsername;
                 profileNickname.textContent = currentNickname;
-                profileVerified.textContent = currentVerified ? '✅ Да' : '❌ Нет';
+                profileVerified.innerHTML = getVerifiedSVG(currentVerified) + (currentVerified ? ' Да' : ' Нет');
                 newUsername.value = currentUsername;
                 newNickname.value = currentNickname;
                 localStorage.setItem('username', currentUsername);
@@ -1007,10 +1034,10 @@
                     let html = '';
                     users.forEach(u => {
                         if (u.id === currentUserId) return;
-                        const verified = u.verified ? ' <i class="fas fa-check-circle" style="color:#6dd5fa;"></i>' : '';
+                        const verifiedIcon = getVerifiedSVG(u.verified || false, 16);
                         html += `<div class="search-result" data-id="${u.id}" data-username="${u.username}" data-nickname="${u.nickname}">
                             <i class="fas fa-user-circle" style="color:#6dd5fa; font-size:1.2rem;"></i>
-                            <span><strong>${u.nickname}</strong> (@${u.username})${verified}</span>
+                            <span><strong>${u.nickname}</strong> (@${u.username}) ${verifiedIcon}</span>
                         </div>`;
                     });
                     searchResults.innerHTML = html;
@@ -1049,9 +1076,9 @@
         dialogsList.forEach(d => {
             const unread = unreadCounts[d.id] || 0;
             const badge = unread > 0 ? `<span class="unread-badge">${unread}</span>` : '';
-            const verified = d.verified ? ' <i class="fas fa-check-circle" style="color:#6dd5fa;font-size:0.8rem;"></i>' : '';
+            const verifiedIcon = getVerifiedSVG(d.verified || false, 16);
             html += `<div class="dialog-item" data-id="${d.id}" onclick="openChat('${d.id}','${d.nickname||d.username}')">
-                <span><i class="fas fa-user-circle" style="color:#6dd5fa;margin-right:8px;"></i>${d.nickname||d.username}${verified}</span>
+                <span><i class="fas fa-user-circle" style="color:#6dd5fa;margin-right:8px;"></i>${d.nickname||d.username} ${verifiedIcon}</span>
                 ${badge}
             </div>`;
         });
@@ -1061,7 +1088,9 @@
     // ---- Открыть чат ----
     window.openChat = function(partnerId, partnerName) {
         chatPartnerId = partnerId;
-        chatPartnerName.textContent = partnerName + (currentVerified ? ' ✅' : '');
+        // Добавляем SVG-иконку верификации текущего пользователя (если есть)
+        const myVerifiedIcon = currentVerified ? getVerifiedSVG(true, 16) : '';
+        chatPartnerName.innerHTML = partnerName + ' ' + myVerifiedIcon;
         showTab('chat');
         checkBlockStatus(partnerId);
         loadMessages();
